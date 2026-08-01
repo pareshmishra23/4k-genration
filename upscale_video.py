@@ -290,7 +290,7 @@ def calculate_target_resolution(
 
 
 def auto_tile_size(video_w: int, video_h: int, device: str) -> int:
-    """Auto-determine tile size based on resolution and device."""
+    """Auto-determine tile size based on resolution and device VRAM."""
     area = video_w * video_h
     if device == "cpu":
         thresholds = [
@@ -303,22 +303,38 @@ def auto_tile_size(video_w: int, video_h: int, device: str) -> int:
     else:
         if torch.cuda.is_available():
             vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+            gpu_name = torch.cuda.get_device_name(0).lower()
         else:
             vram_gb = 0
-        if vram_gb >= 16:
+            gpu_name = ""
+
+        # High-VRAM GPUs (T4=16GB, A100=40GB, V100=16GB) can often skip tiling
+        is_high_vram = vram_gb >= 12
+        is_t4 = "t4" in gpu_name
+
+        if is_high_vram:
+            # T4 and similar: no tiling for 1080p and below, large tiles for 4K source
+            if is_t4 and area <= 1920 * 1080:
+                return 0  # T4 handles 1080p→4K without tiling easily
             thresholds = [
-                (480 * 360, 0), (1280 * 720, 512),
-                (1920 * 1080, 512), (3840 * 2160, 384), (float('inf'), 256)
+                (480 * 360, 0),
+                (1280 * 720, 0),
+                (1920 * 1080, 512 if not is_t4 else 0),
+                (2560 * 1440, 512),
+                (3840 * 2160, 512),
+                (float('inf'), 384)
             ]
-        elif vram_gb >= 8:
+        elif vram_gb >= 6:
             thresholds = [
                 (480 * 360, 0), (1280 * 720, 512),
-                (1920 * 1080, 384), (3840 * 2160, 256), (float('inf'), 256)
+                (1920 * 1080, 384), (2560 * 1440, 256),
+                (3840 * 2160, 256), (float('inf'), 128)
             ]
         else:
             thresholds = [
                 (480 * 360, 0), (1280 * 720, 384),
-                (1920 * 1080, 256), (3840 * 2160, 128), (float('inf'), 128)
+                (1920 * 1080, 256), (2560 * 1440, 128),
+                (3840 * 2160, 128), (float('inf'), 64)
             ]
 
     for max_area, tile in thresholds:
