@@ -1,5 +1,5 @@
-torch>=2.0.0
-torchvision>=0.15.0
+# NOTE: torch and torchvision are pre-installed in Google Colab.
+# For local install: pip install torch torchvision
 numpy>=1.24.0
 opencv-python>=4.7.0
 Pillow
@@ -8,3 +8,4 @@ ffmpeg-python
 # Real-ESRGAN and basicsr are installed via:
 #   git clone https://github.com/xinntao/Real-ESRGAN.git
 #   cd Real-ESRGAN && pip install .
+# Or fallback: pip install basicsr realesrgan
