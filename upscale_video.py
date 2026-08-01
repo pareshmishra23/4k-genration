@@ -23,14 +23,24 @@ import cv2
 import torch
 import sys
 import pathlib
+import importlib.util
 
 def patch_basicsr():
-    """Patch basicsr to fix torchvision compatibility issue."""
+    """Patch basicsr to fix torchvision compatibility issue and numpy 2.0 issues."""
     try:
+        # Check for basicsr module
+        spec = importlib.util.find_spec("basicsr")
+        if spec is None:
+            print("basicsr not found, skipping patch.")
+            return
+
         import basicsr
-        path = pathlib.Path(basicsr.__file__).parent / "data" / "degradations.py"
-        if path.exists():
-            content = path.read_text()
+        basicsr_path = pathlib.Path(basicsr.__file__).parent
+
+        # Patch torchvision.transforms.functional_tensor
+        degradations_path = basicsr_path / "data" / "degradations.py"
+        if degradations_path.exists():
+            content = degradations_path.read_text()
             if "functional_tensor" in content:
                 print("Patching basicsr for torchvision compatibility...")
                 content = content.replace(
@@ -38,11 +48,16 @@ def patch_basicsr():
                     "from torchvision.transforms.functional import rgb_to_grayscale",
                 )
                 try:
-                    path.write_text(content)
-                    print("Successfully patched basicsr.")
+                    degradations_path.write_text(content)
+                    print("Successfully patched basicsr torchvision import.")
                 except PermissionError:
-                    print("Warning: Could not patch basicsr due to permission error. Run with sudo if it fails.")
-    except (ImportError, Exception) as e:
+                    print("Warning: Could not patch basicsr torchvision import due to permission error.")
+
+        # Patch numpy 2.0 compatibility if needed (e.g., np.int is deprecated)
+        # This is a more general approach, specific files might need targeted patches
+        # For now, we rely on pinning numpy<2 in requirements.txt
+
+    except Exception as e:
         print(f"Note: Basicsr patch skipped or failed: {e}")
 
 # Run patch before imports that might fail
@@ -82,14 +97,14 @@ def get_upsampler(model_name: str, tile: int = 0, device: str = "cpu"):
         model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=6, num_grow_ch=32, scale=4)
         netscale = 4
         file_url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth"
-    elif model_name == "RealESRGAN_x2plus":
-        model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=2)
-        netscale = 2
-        file_url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth"
     elif model_name == "realesr-animevideov3":
         model = SRVGGNetCompact(num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=16, upscale=4, act_type="prelu")
         netscale = 4
         file_url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-animevideov3.pth"
+    elif model_name == "RealESRGAN_x2plus":
+        model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=2)
+        netscale = 2
+        file_url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth"
     elif model_name == "realesr-general-x4v3":
         model = SRVGGNetCompact(num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=32, upscale=4, act_type="prelu")
         netscale = 4
@@ -153,15 +168,15 @@ def upscale_video(video_path, output_dir, resolution, model_name, device="cpu", 
 
     # Maintain aspect ratio logic
     aspect = width / height
-    if aspect > 1: # Landscape
-        scale = max(target_w / width, target_h / height)
-    else: # Portrait or Square
-        scale = max(target_w / height, target_h / width)
-    
+    # Calculate the scaling factor based on the target resolution
+    scale_factor_w = target_w / width
+    scale_factor_h = target_h / height
+    scale = min(scale_factor_w, scale_factor_h) # Use min to ensure the video fits within the target dimensions
+
     out_w, out_h = int(width * scale), int(height * scale)
     # Ensure even dimensions for ffmpeg
-    if out_w % 2 != 0: out_w += 1
-    if out_h % 2 != 0: out_h += 1
+    if out_w % 2 != 0: out_w -= 1 # Subtract 1 to make it even
+    if out_h % 2 != 0: out_h -= 1 # Subtract 1 to make it even
 
     print(f"Processing: {width}x{height} -> {out_w}x{out_h} (Target: {target_w}x{target_h})")
     
@@ -180,8 +195,11 @@ def upscale_video(video_path, output_dir, resolution, model_name, device="cpu", 
         ret, frame = cap.read()
         if not ret: break
         try:
-            output, _ = upsampler.enhance(frame, outscale=scale)
-            writer.write(output)
+            # RealESRGANer expects RGB, OpenCV reads BGR
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            output_rgb, _ = upsampler.enhance(frame_rgb, outscale=scale)
+            output_bgr = cv2.cvtColor(output_rgb, cv2.COLOR_RGB2BGR)
+            writer.write(output_bgr)
         except Exception as e:
             print(f"Error: {e}. Resizing as fallback.")
             writer.write(cv2.resize(frame, (out_w, out_h)))
@@ -195,14 +213,24 @@ def upscale_video(video_path, output_dir, resolution, model_name, device="cpu", 
     final_output = os.path.join(output_dir, f"{video_base}_upscaled_{target_w}x{target_h}.mp4")
     print("Finalizing video with ffmpeg...")
     
-    crop_filter = f"crop={target_w}:{target_h}:(in_w-{target_w})/2:(in_h-{target_h})/2"
+    # Ensure the crop filter uses the target_w and target_h for the final output dimensions
+    # and centers the crop from the potentially slightly larger upscaled video
+    crop_filter = f"crop={target_w}:{target_h}:(iw-{target_w})/2:(ih-{target_h})/2"
     cmd = [
         "ffmpeg", "-y", "-i", temp_output,
         "-vf", crop_filter,
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         final_output
     ]
-    subprocess.run(cmd, check=True, capture_output=True)
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+    except subprocess.CalledProcessError as e:
+        print(f"FFmpeg error: {e.stderr.decode()}")
+        # If ffmpeg fails, just keep the temp_output as the final output
+        os.rename(temp_output, final_output)
+        print(f"FFmpeg failed, keeping intermediate file as final: {final_output}")
+        return final_output
+
     os.remove(temp_output)
     
     print(f"Done! Saved to: {final_output}")

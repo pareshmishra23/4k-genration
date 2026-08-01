@@ -1,7 +1,7 @@
-torch>=1.7
-torchvision
-numpy<2
-opencv-python
+torch==2.2.2
+torchvision==0.17.2
+numpy==1.26.4
+opencv-python==4.7.0.72
 Pillow
 basicsr>=1.4.2
 facexlib>=0.2.5
