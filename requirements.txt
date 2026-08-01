@@ -1,8 +1,10 @@
-torch==2.2.2
-torchvision==0.17.2
-numpy==1.26.4
-opencv-python==4.7.0.72
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.24.0
+opencv-python>=4.7.0
 Pillow
-# basicsr is installed as part of Real-ESRGAN setup. It will be patched.
 tqdm
 ffmpeg-python
+# Real-ESRGAN and basicsr are installed via:
+#   git clone https://github.com/xinntao/Real-ESRGAN.git
+#   cd Real-ESRGAN && pip install .
