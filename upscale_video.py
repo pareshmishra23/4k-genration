@@ -87,6 +87,14 @@ except ImportError as e:
 
 # Resolve Real-ESRGAN path
 SCRIPT_DIR = Path(__file__).parent.resolve()
+# Handle Colab nested clone paths
+for _ in range(5):
+    if (SCRIPT_DIR / 'Real-ESRGAN').is_dir():
+        break
+    if SCRIPT_DIR.parent != SCRIPT_DIR:
+        SCRIPT_DIR = SCRIPT_DIR.parent
+    else:
+        break
 REAL_ESRGAN_DIR = SCRIPT_DIR / "Real-ESRGAN"
 if REAL_ESRGAN_DIR.is_dir():
     sys.path.insert(0, str(REAL_ESRGAN_DIR))
@@ -97,10 +105,11 @@ try:
     from realesrgan.archs.srvgg_arch import SRVGGNetCompact
     from basicsr.utils.download_util import load_file_from_url
 except ImportError as e:
-    print(f"[ERROR] Real-ESRGAN libraries not found: {e}")
-    print("[HINT] git clone https://github.com/xinntao/Real-ESRGAN.git")
-    print("       cd Real-ESRGAN && pip install .")
-    sys.exit(1)
+    raise ImportError(
+        f"Real-ESRGAN libraries not found: {e}. "
+        "Please run: git clone https://github.com/xinntao/Real-ESRGAN.git && "
+        "cd Real-ESRGAN && pip install ."
+    ) from e
 
 
 # ---------------------------------------------------------------------------
