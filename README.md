@@ -2,8 +2,7 @@
 
 Upscale your videos up to **4K / 8K** on free Google Colab or locally using [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN).
 
-**Based on:** [yuvraj108c/4k-video-upscaler-colab](https://github.com/yuvraj108c/4k-video-upscaler-colab)
-
+ 
 ---
 
 ## ✨ What's New in v2.0
