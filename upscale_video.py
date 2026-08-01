@@ -26,7 +26,7 @@ import pathlib
 import importlib.util
 
 def patch_basicsr():
-    """Patch basicsr to fix torchvision compatibility issue and numpy 2.0 issues."""
+    """Patch basicsr to fix torchvision compatibility issue."""
     try:
         # Check for basicsr module
         spec = importlib.util.find_spec("basicsr")
@@ -41,7 +41,8 @@ def patch_basicsr():
         degradations_path = basicsr_path / "data" / "degradations.py"
         if degradations_path.exists():
             content = degradations_path.read_text()
-            if "functional_tensor" in content:
+            # Only patch if the problematic import is present
+            if "from torchvision.transforms.functional_tensor import rgb_to_grayscale" in content:
                 print("Patching basicsr for torchvision compatibility...")
                 content = content.replace(
                     "from torchvision.transforms.functional_tensor import rgb_to_grayscale",
@@ -51,16 +52,14 @@ def patch_basicsr():
                     degradations_path.write_text(content)
                     print("Successfully patched basicsr torchvision import.")
                 except PermissionError:
-                    print("Warning: Could not patch basicsr torchvision import due to permission error.")
-
-        # Patch numpy 2.0 compatibility if needed (e.g., np.int is deprecated)
-        # This is a more general approach, specific files might need targeted patches
-        # For now, we rely on pinning numpy<2 in requirements.txt
+                    print("Warning: Could not patch basicsr torchvision import due to permission error. Manual intervention might be needed.")
+            else:
+                print("basicsr torchvision import already patched or not present.")
 
     except Exception as e:
         print(f"Note: Basicsr patch skipped or failed: {e}")
 
-# Run patch before imports that might fail
+# Run patch before any imports that might fail due to basicsr issues
 patch_basicsr()
 
 # Resolve Real-ESRGAN paths
@@ -73,8 +72,9 @@ try:
     from realesrgan import RealESRGANer
     from realesrgan.archs.srvgg_arch import SRVGGNetCompact
     from basicsr.utils.download_util import load_file_from_url
-except ImportError:
-    print("Error: Required libraries (basicsr, realesrgan) not found. Please install them first.")
+except ImportError as e:
+    print(f"Error: Required libraries (basicsr, realesrgan) not found or failed to import: {e}")
+    print("Please ensure Real-ESRGAN is cloned and installed, and basicsr is correctly patched.")
     sys.exit(1)
 
 import numpy as np
@@ -201,7 +201,7 @@ def upscale_video(video_path, output_dir, resolution, model_name, device="cpu", 
             output_bgr = cv2.cvtColor(output_rgb, cv2.COLOR_RGB2BGR)
             writer.write(output_bgr)
         except Exception as e:
-            print(f"Error: {e}. Resizing as fallback.")
+            print(f"Error during frame processing: {e}. Resizing as fallback.")
             writer.write(cv2.resize(frame, (out_w, out_h)))
         pbar.update(1)
     
