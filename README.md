@@ -1,63 +1,124 @@
-# 4K Video Upscaler (Real-ESRGAN)
+# 🎬 4K Video Upscaler (Real-ESRGAN) v2.0
 
-Upscale your videos up to 4K on free Google Colab or locally using [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN).
+Upscale your videos up to **4K / 8K** on free Google Colab or locally using [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN).
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pareshmishra23/4k-genration/blob/main/4k_Video_Upscaler_Colab_(Real_ESRGAN).ipynb)
+**Based on:** [yuvraj108c/4k-video-upscaler-colab](https://github.com/yuvraj108c/4k-video-upscaler-colab)
 
-## Features
+---
 
-- **Multi-Environment Support** — Works in Google Colab and standard Linux/Windows Python environments.
-- **Flexible Input** — Support for Google Drive, Direct Upload (Colab), or Local Paths.
-- **Multiple Models** — Choose between general, anime, and fast video models.
-- **High Resolution** — Upscale to FHD (1080p), 2K, 4K, or custom multipliers (2x, 3x, 4x).
-- **Auto-Patching** — Automatically fixes common library compatibility issues (e.g., `basicsr` vs `torchvision`).
+## ✨ What's New in v2.0
 
-## Models
+| Feature | v1.0 | v2.0 |
+|---------|------|------|
+| **Audio** | ❌ Stripped | ✅ Preserved via FFmpeg stream copy |
+| **Compression** | Double (mp4v → libx264) | Single pass raw → libx264 |
+| **Auto-tiling** | Manual only | Smart auto by resolution + VRAM |
+| **Batch mode** | ❌ | ✅ Process entire folders |
+| **Resume** | ❌ | ✅ Skip already-done files |
+| **Color space** | Untagged | BT.709 tagged |
+| **Error recovery** | Crash on bad frame | Lanczos fallback per frame |
+| **Progress** | Basic bar | Live FPS + ETA |
+| **basicsr patch** | Manual | Auto on import |
+| **Dry run** | ❌ | ✅ Validate without processing |
+| **Web playback** | Slow start | Faststart moov atom |
+| **Quality control** | Fixed | Configurable CRF + preset |
 
-| Model | Description |
-|-------|-------------|
-| `RealESRGAN_x4plus` | Best for general photos and high-quality videos. |
-| `RealESRGAN_x4plus_anime_6B` | Optimized for anime and cartoons. |
-| `realesr-animevideov3` | Fastest model for anime videos. |
-| `RealESRNet_x4plus` | General model with fewer artifacts. |
-| `RealESRGAN_x2plus` | Optimized for 2x upscaling. |
-| `realesr-general-x4v3` | General model with noise reduction. |
+---
 
-## Installation (Local)
+## 🚀 Quick Start (Google Colab)
+
+1. Open the notebook: **[4k_Video_Upscaler_Colab_(Real_ESRGAN).ipynb](https://github.com/pareshmishra23/4k-genration/blob/main/4k_Video_Upscaler_Colab_(Real_ESRGAN).ipynb)**
+2. Change runtime to GPU: `Runtime` → `Change runtime type` → `T4 GPU`
+3. Run all cells → Upload video → Configure → Upscale → Download
+
+---
+
+## 🖥️ Local Installation
 
 ```bash
-# Clone the repository
+# 1. Clone
 git clone https://github.com/pareshmishra23/4k-genration.git
 cd 4k-genration
 
-# Install dependencies
+# 2. Install Python deps
 pip install -r requirements.txt
 
-# Clone Real-ESRGAN dependency
+# 3. Install Real-ESRGAN
 git clone https://github.com/xinntao/Real-ESRGAN.git
 cd Real-ESRGAN && pip install . && cd ..
+
+# 4. Upscale!
+python upscale_video.py -i video.mp4 -o ./output -r "4k (3840 x 2160)"
 ```
 
-## Usage (Local)
+---
+
+## 📋 CLI Usage
 
 ```bash
-python upscale_video.py --input video.mp4 --output ./output --resolution "4k (3840 x 2160)" --model RealESRGAN_x4plus
+# Single video
+python upscale_video.py -i video.mp4 -o ./output -r "4k (3840 x 2160)" -m RealESRGAN_x4plus
+
+# Batch folder
+python upscale_video.py -i ./videos/ --batch -o ./output -r "4k (3840 x 2160)" --resume
+
+# Fast draft quality
+python upscale_video.py -i video.mp4 --preset fast --crf 23
+
+# Validate setup without processing
+python upscale_video.py -i video.mp4 --dry-run
 ```
 
 ### Options
 
-- `--input`, `-i`: Path to the input video.
-- `--output`, `-o`: Directory to save the result.
-- `--resolution`, `-r`: Target resolution (e.g., "4k (3840 x 2160)", "2 x original").
-- `--model`, `-m`: Model name to use.
-- `--device`: `cuda` or `cpu` (default: auto-detect).
-- `--tile`: Tile size for low-memory processing (default: 0 for auto).
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-i, --input` | Input video or directory | **required** |
+| `-o, --output` | Output directory | `./output` |
+| `-r, --resolution` | Target resolution | `4k (3840 x 2160)` |
+| `-m, --model` | Model name | `RealESRGAN_x4plus` |
+| `--device` | `cuda` or `cpu` | auto-detect |
+| `--tile` | Tile size (0 = auto) | `0` |
+| `--crf` | FFmpeg CRF (lower = better) | `18` |
+| `--preset` | Encode speed/quality tradeoff | `slow` |
+| `--batch` | Process all videos in folder | — |
+| `--resume` | Skip existing outputs | — |
+| `--dry-run` | Validate without processing | — |
+| `--keep-temp` | Keep temporary files | — |
 
-## Credits
+---
 
-- [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) by xinntao.
-- Original Colab notebook structure by [yuvraj108c](https://github.com/yuvraj108c).
+## 🧠 Models
 
-## License
+| Model | Best For | Speed |
+|-------|----------|-------|
+| `RealESRGAN_x4plus` | General photos/videos | Medium |
+| `RealESRNet_x4plus` | General, fewer artifacts | Medium |
+| `RealESRGAN_x4plus_anime_6B` | Anime/cartoons | Medium |
+| `realesr-animevideov3` | Anime videos | **Fast** |
+| `RealESRGAN_x2plus` | 2× upscaling only | Medium |
+| `realesr-general-x4v3` | General + noise reduction | Medium |
+
+---
+
+## 🛠️ Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Out of Memory | Lower `--tile` (128/256) or use CPU |
+| No audio in output | Check source has audio; v2.0 auto-preserves |
+| Very slow | Use `--preset fast` or `--preset medium` |
+| Wrong colors | v2.0 tags BT.709; try different model |
+| `basicsr` import error | Restart runtime; v2.0 auto-patches on load |
+
+---
+
+## 📄 License
 
 MIT
+
+## 🙏 Credits
+
+- [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) by xinntao
+- Original Colab structure by [yuvraj108c](https://github.com/yuvraj108c)
+- Enhanced v2.0 by [pareshmishra23](https://github.com/pareshmishra23)
