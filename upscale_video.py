@@ -19,6 +19,32 @@ import subprocess
 import cv2
 import torch
 import sys
+import pathlib
+
+def patch_basicsr():
+    """Patch basicsr to fix torchvision compatibility issue."""
+    try:
+        import basicsr
+        path = pathlib.Path(basicsr.__file__).parent / "data" / "degradations.py"
+        if path.exists():
+            content = path.read_text()
+            if "functional_tensor" in content:
+                print("Patching basicsr for torchvision compatibility...")
+                content = content.replace(
+                    "from torchvision.transforms.functional_tensor import rgb_to_grayscale",
+                    "from torchvision.transforms.functional import rgb_to_grayscale",
+                )
+                try:
+                    path.write_text(content)
+                    print("Successfully patched basicsr.")
+                except PermissionError:
+                    print("Warning: Could not patch basicsr due to permission error. Run with sudo if it fails.")
+    except ImportError:
+        pass
+
+# Run patch before imports that might fail
+patch_basicsr()
+
 
 # Resolve Real-ESRGAN paths
 REAL_ESRGAN_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Real-ESRGAN")
