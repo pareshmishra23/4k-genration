@@ -119,5 +119,4 @@ MIT
 ## 🙏 Credits
 
 - [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) by xinntao
-- Original Colab structure by [yuvraj108c](https://github.com/yuvraj108c)
-- Enhanced v2.0 by [pareshmishra23](https://github.com/pareshmishra23)
+ 
