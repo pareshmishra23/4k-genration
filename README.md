@@ -30,6 +30,9 @@ Upscale your videos up to **4K / 8K** on free Google Colab or locally using [Rea
 2. Change runtime to GPU: `Runtime` → `Change runtime type` → `T4 GPU`
 3. Run all cells → Upload video → Configure → Upscale → Download
 
+# 🎬 4K Video Upscaler (Real-ESRGAN) v2.0
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pareshmishra23/4k-genration/blob/main/4k_Video_Upscaler_Colab_(Real_ESRGAN).ipynb)
 ---
 
 ## 🖥️ Local Installation
